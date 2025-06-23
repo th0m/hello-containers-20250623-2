@@ -11,6 +11,7 @@
   },
   "containers": [
     {
+      "instance_type": "dev",
       "class_name": "MyContainer",
       "image": "./Dockerfile",
       "max_instances": 2,
