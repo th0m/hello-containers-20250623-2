@@ -3,12 +3,15 @@
   "name": "hello-containers-20250623-2",
   "main": "src/index.ts",
   "compatibility_date": "2025-05-23",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
   "containers": [
     {
+      "instance_type": "basic",
       "class_name": "MyContainer",
       "image": "./Dockerfile",
       "max_instances": 10,
@@ -25,7 +28,9 @@
   },
   "migrations": [
     {
-      "new_sqlite_classes": ["MyContainer"],
+      "new_sqlite_classes": [
+        "MyContainer"
+      ],
       "tag": "v1"
     }
   ]
