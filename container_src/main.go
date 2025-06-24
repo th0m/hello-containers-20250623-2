@@ -28,12 +28,23 @@ func randomDataHandler(w http.ResponseWriter, r *http.Request) {
 			size = parsedSize
 		}
 	}
-	
+
 	w.Header().Set("Content-Type", "application/octet-stream")
-	
-	data := make([]byte, size)
-	rand.Read(data)
-	w.Write(data)
+
+	chunkSize := 1024
+	buffer := make([]byte, chunkSize)
+
+	for remaining := size; remaining > 0; {
+		currentChunk := min(remaining, chunkSize)
+
+		rand.Read(buffer[:currentChunk])
+		w.Write(buffer[:currentChunk])
+		remaining -= currentChunk
+
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
 }
 
 func main() {
