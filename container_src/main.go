@@ -31,8 +31,9 @@ func randomDataHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 
-	chunkSize := 1024
+	chunkSize := 64 * 1024 // 64KB chunks
 	buffer := make([]byte, chunkSize)
+	flushCounter := 0
 
 	for remaining := size; remaining > 0; {
 		currentChunk := min(remaining, chunkSize)
@@ -40,10 +41,19 @@ func randomDataHandler(w http.ResponseWriter, r *http.Request) {
 		rand.Read(buffer[:currentChunk])
 		w.Write(buffer[:currentChunk])
 		remaining -= currentChunk
+		flushCounter++
 
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
+		// Flush every 16 chunks (1MB) instead of every chunk
+		if flushCounter%16 == 0 {
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
 		}
+	}
+
+	// Final flush
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
 	}
 }
 
