@@ -14,7 +14,7 @@
       "instance_type": "dev",
       "class_name": "MyContainer",
       "image": "./Dockerfile",
-      "max_instances": 1,
+      "max_instances": 10,
       "name": "hello-containers"
     }
   ],
