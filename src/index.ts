@@ -34,16 +34,23 @@ const app = new Hono<{
 app.get("/", (c) => {
   return c.text(
     "Available endpoints:\n" +
-      "GET /container/<ID> - Start a container for each ID with a 2m timeout\n" +
-      "GET /lb - Load balance requests over multiple containers\n" +
-      "GET /error - Start a container that errors (demonstrates error handling)\n" +
-      "GET /singleton - Get a single specific container instance\n" +
-      "GET /random?size=<bytes> - Generate random data (default: 1024 bytes)",
+    "GET /container/<ID> - Start a container for each ID with a 2m timeout\n" +
+    "GET /lb - Load balance requests over multiple containers\n" +
+    "GET /error - Start a container that errors (demonstrates error handling)\n" +
+    "GET /singleton - Get a single specific container instance\n" +
+    "GET /random?size=<bytes> - Generate random data (default: 1024 bytes)",
   );
 });
 
 // Route requests to a specific container using the container ID
 app.get("/container/:id", async (c) => {
+  const id = c.req.param("id");
+  const containerId = c.env.MY_CONTAINER.idFromName(`/container/${id}`);
+  const container = c.env.MY_CONTAINER.get(containerId);
+  return await container.fetch(c.req.raw);
+});
+
+app.get("/container2/:id", async (c) => {
   const id = c.req.param("id");
   const containerId = c.env.MY_CONTAINER.idFromName(`/container/${id}`);
   const container = c.env.MY_CONTAINER.get(containerId);

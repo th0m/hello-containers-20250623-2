@@ -16,6 +16,13 @@
       "image": "./Dockerfile",
       "max_instances": 10,
       "name": "hello-containers"
+    },
+    {
+      "instance_type": "dev",
+      "class_name": "MyContainer2",
+      "image": "./Dockerfile",
+      "max_instances": 10,
+      "name": "hello-containers2"
     }
   ],
   "durable_objects": {
@@ -23,13 +30,23 @@
       {
         "class_name": "MyContainer",
         "name": "MY_CONTAINER"
+      },
+      {
+        "class_name": "MyContainer2",
+        "name": "MY_CONTAINER2"
       }
     ]
   },
   "migrations": [
     {
       "new_sqlite_classes": [
-        "MyContainer"
+        "MyContainer",
+      ],
+      "tag": "v1"
+    },
+    {
+      "new_sqlite_classes": [
+        "MyContainer2",
       ],
       "tag": "v1"
     }
