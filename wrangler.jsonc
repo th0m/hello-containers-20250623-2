@@ -12,7 +12,7 @@
   "routes": [
     {
       "pattern": "containers.th0m.uk/*",
-      "zone_name": "th0m.uk"
+      "custom_domain": true
     }
   ],
   "containers": [
