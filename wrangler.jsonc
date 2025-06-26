@@ -47,12 +47,7 @@
     {
       "new_sqlite_classes": [
         "MyContainer",
-      ],
-      "tag": "v1"
-    },
-    {
-      "new_sqlite_classes": [
-        "MyContainer2",
+        "MyContainer2"
       ],
       "tag": "v1"
     }
