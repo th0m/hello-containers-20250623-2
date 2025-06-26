@@ -1,7 +1,7 @@
 import { Container, loadBalance, getContainer } from "@cloudflare/containers";
 import { Hono } from "hono";
 
-export class MyContainer extends Container {
+export class MyContainer extends Container<Env> {
   // Port the container listens on (default: 8080)
   defaultPort = 8080;
   // Time before container sleeps due to inactivity (default: 30s)
@@ -9,6 +9,7 @@ export class MyContainer extends Container {
   // Environment variables passed to the container
   envVars = {
     MESSAGE: "I was passed in via the container class!",
+    MYSECRET: this.env.MYSECRET
   };
 
   // Optional lifecycle hooks
@@ -25,7 +26,7 @@ export class MyContainer extends Container {
   }
 }
 
-export class MyContainer2 extends Container {
+export class MyContainer2 extends Container<Env> {
   // Port the container listens on (default: 8080)
   defaultPort = 8080;
   // Time before container sleeps due to inactivity (default: 30s)
@@ -33,6 +34,7 @@ export class MyContainer2 extends Container {
   // Environment variables passed to the container
   envVars = {
     MESSAGE: "I was passed in via the container class 2!",
+    MYSECRET: this.env.MYSECRET,
   };
 
   // Optional lifecycle hooks

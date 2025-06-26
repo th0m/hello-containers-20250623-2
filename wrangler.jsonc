@@ -9,6 +9,12 @@
   "observability": {
     "enabled": true
   },
+  "routes": [
+    {
+      "pattern": "containers.th0m.uk/*",
+      "zone_name": "th0m.uk"
+    }
+  ],
   "containers": [
     {
       "instance_type": "dev",
