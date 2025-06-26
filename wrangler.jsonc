@@ -11,7 +11,7 @@
   },
   "routes": [
     {
-      "pattern": "containers.th0m.uk/*",
+      "pattern": "containers.th0m.uk",
       "custom_domain": true
     }
   ],
