@@ -25,9 +25,36 @@ export class MyContainer extends Container {
   }
 }
 
+export class MyContainer2 extends Container {
+  // Port the container listens on (default: 8080)
+  defaultPort = 8080;
+  // Time before container sleeps due to inactivity (default: 30s)
+  sleepAfter = "2m";
+  // Environment variables passed to the container
+  envVars = {
+    MESSAGE: "I was passed in via the container class 2!",
+  };
+
+  // Optional lifecycle hooks
+  override onStart() {
+    console.log("Container 2 successfully started");
+  }
+
+  override onStop() {
+    console.log("Container 2 successfully shut down");
+  }
+
+  override onError(error: unknown) {
+    console.log("Container 2 error:", error);
+  }
+}
+
 // Create Hono app with proper typing for Cloudflare Workers
 const app = new Hono<{
-  Bindings: { MY_CONTAINER: DurableObjectNamespace<MyContainer> };
+  Bindings: {
+    MY_CONTAINER: DurableObjectNamespace<MyContainer>;
+    MY_CONTAINER2: DurableObjectNamespace<MyContainer2>;
+  };
 }>();
 
 // Home route with available endpoints
@@ -52,8 +79,8 @@ app.get("/container/:id", async (c) => {
 
 app.get("/container2/:id", async (c) => {
   const id = c.req.param("id");
-  const containerId = c.env.MY_CONTAINER.idFromName(`/container/${id}`);
-  const container = c.env.MY_CONTAINER.get(containerId);
+  const containerId = c.env.MY_CONTAINER2.idFromName(`/container/${id}`);
+  const container = c.env.MY_CONTAINER2.get(containerId);
   return await container.fetch(c.req.raw);
 });
 
