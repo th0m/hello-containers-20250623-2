@@ -2,8 +2,8 @@ import { Container, loadBalance, getContainer } from "@cloudflare/containers";
 import { Hono } from "hono";
 
 export class MyContainer extends Container<Env> {
-  // Port the container listens on (default: 8080)
-  defaultPort = 8080;
+  // Port the container listens on
+  defaultPort = 80;
   // Time before container sleeps due to inactivity (default: 30s)
   sleepAfter = "2m";
   // Environment variables passed to the container
@@ -27,8 +27,8 @@ export class MyContainer extends Container<Env> {
 }
 
 export class MyContainer2 extends Container<Env> {
-  // Port the container listens on (default: 8080)
-  defaultPort = 8080;
+  // Port the container listens on
+  defaultPort = 80;
   // Time before container sleeps due to inactivity (default: 30s)
   sleepAfter = "2m";
   // Environment variables passed to the container

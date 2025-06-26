@@ -64,5 +64,5 @@ func main() {
 	http.HandleFunc("/container", handler)
 	http.HandleFunc("/error", errorHandler)
 	http.HandleFunc("/random", randomDataHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":80", nil))
 }
