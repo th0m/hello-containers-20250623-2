@@ -1,5 +1,38 @@
-import { Container, loadBalance, getContainer } from "@cloudflare/containers";
+import { Container } from "@cloudflare/containers";
 import { Hono } from "hono";
+
+interface FSMessage {
+  id: number;
+  operation: "read" | "write" | "stat" | "readdir" | "unlink";
+  path: string;
+  data?: number[];
+  offset?: number;
+  size?: number;
+}
+
+interface FSResponse {
+  id: number;
+  data?: number[];
+  bytesWritten?: number;
+  files?: string[];
+  stat?: {
+    size: number;
+    isFile: boolean;
+    isDir: boolean;
+    mtime: number;
+  };
+  success?: boolean;
+  error?: string;
+}
+
+interface Connection {
+  opened: Promise<any>;
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+}
+
+// Global map to store TCP connections by container ID
+const containerConnections = new Map<string, Connection>();
 
 export class MyContainer extends Container<Env> {
   // Port the container listens on
@@ -12,10 +45,10 @@ export class MyContainer extends Container<Env> {
     MYSECRET: this.env.MYSECRET
   };
 
-  private fileSystemStorage = new Map<string, Uint8Array>();
+  public fileSystemStorage = new Map<string, Uint8Array>();
+  private containerId?: string;
 
-
-  private async handleFileSystemOperation(message: any) {
+  async performFileSystemOperation(message: FSMessage): Promise<FSResponse> {
     const { id, operation, path, data, offset, size } = message;
 
     switch (operation) {
@@ -28,7 +61,7 @@ export class MyContainer extends Container<Env> {
         return { id, data: Array.from(readData) };
 
       case "write":
-        const writeData = new Uint8Array(data);
+        const writeData = new Uint8Array(data || []);
         if (offset) {
           const existing = this.fileSystemStorage.get(path) || new Uint8Array();
           const newData = new Uint8Array(Math.max(existing.length, offset + writeData.length));
@@ -58,8 +91,8 @@ export class MyContainer extends Container<Env> {
 
       case "readdir":
         const files = Array.from(this.fileSystemStorage.keys())
-          .filter(key => key.startsWith(path === "/" ? "" : path))
-          .map(key => key.slice(path.length).split("/")[0])
+          .filter((key: string) => key.startsWith(path === "/" ? "" : path))
+          .map((key: string) => key.slice(path.length).split("/")[0])
           .filter((name, index, arr) => arr.indexOf(name) === index && name);
         return { id, files };
 
@@ -74,6 +107,59 @@ export class MyContainer extends Container<Env> {
     }
   }
 
+  async handleFilesystemConnection(conn: Connection): Promise<void> {
+    const reader = conn.readable.getReader();
+    const writer = conn.writable.getWriter();
+
+    let buffer = new Uint8Array();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Append new data to buffer
+        const combined = new Uint8Array(buffer.length + value.length);
+        combined.set(buffer);
+        combined.set(value, buffer.length);
+        buffer = combined;
+
+        // Try to parse complete messages (length-prefixed)
+        while (buffer.length >= 4) {
+          const messageLength = new DataView(buffer.buffer).getUint32(0, true);
+          if (buffer.length >= 4 + messageLength) {
+            const messageBytes = buffer.slice(4, 4 + messageLength);
+            const message = JSON.parse(new TextDecoder().decode(messageBytes)) as FSMessage;
+
+            // Process the filesystem operation
+            const response = await this.performFileSystemOperation(message);
+            const responseBytes = new TextEncoder().encode(JSON.stringify(response));
+
+            // Send length-prefixed response
+            const responseBuffer = new ArrayBuffer(4 + responseBytes.length);
+            const view = new DataView(responseBuffer);
+            view.setUint32(0, responseBytes.length, true);
+            new Uint8Array(responseBuffer, 4).set(responseBytes);
+
+            await writer.write(new Uint8Array(responseBuffer));
+
+            // Remove processed message from buffer
+            buffer = buffer.slice(4 + messageLength);
+          } else {
+            break; // Wait for more data
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Filesystem stream error:", error);
+    } finally {
+      reader.releaseLock();
+      writer.releaseLock();
+    }
+  }
+
+
+
   // Optional lifecycle hooks
   override async onStart() {
     console.log("Container successfully started");
@@ -82,6 +168,17 @@ export class MyContainer extends Container<Env> {
     for (const [key, value] of files) {
       const path = key.slice(3); // Remove "fs:" prefix
       this.fileSystemStorage.set(path, value as Uint8Array);
+    }
+    
+    // Check for TCP connections for all possible container IDs
+    // Try to find a connection that matches this DO instance
+    for (const [id, connection] of containerConnections.entries()) {
+      // Start handling the connection for this DO instance
+      console.log(`Starting filesystem connection handler for container ${id}`);
+      this.handleFilesystemConnection(connection);
+      // Remove from map once handled
+      containerConnections.delete(id);
+      break; // Only handle one connection per DO instance
     }
   }
 
@@ -94,36 +191,10 @@ export class MyContainer extends Container<Env> {
   }
 }
 
-export class MyContainer2 extends Container<Env> {
-  // Port the container listens on
-  defaultPort = 80;
-  // Time before container sleeps due to inactivity (default: 30s)
-  sleepAfter = "2m";
-  // Environment variables passed to the container
-  envVars = {
-    MESSAGE: "I was passed in via the container class 2!",
-    MYSECRET: this.env.MYSECRET,
-  };
-
-  // Optional lifecycle hooks
-  override onStart() {
-    console.log("Container 2 successfully started");
-  }
-
-  override onStop() {
-    console.log("Container 2 successfully shut down");
-  }
-
-  override onError(error: unknown) {
-    console.log("Container 2 error:", error);
-  }
-}
-
 // Create Hono app with proper typing for Cloudflare Workers
 const app = new Hono<{
   Bindings: {
     MY_CONTAINER: DurableObjectNamespace<MyContainer>;
-    MY_CONTAINER2: DurableObjectNamespace<MyContainer2>;
   };
 }>();
 
@@ -131,11 +202,7 @@ const app = new Hono<{
 app.get("/", (c) => {
   return c.text(
     "Available endpoints:\n" +
-    "GET /container/<ID> - Start a container for each ID with a 2m timeout\n" +
-    "GET /lb - Load balance requests over multiple containers\n" +
-    "GET /error - Start a container that errors (demonstrates error handling)\n" +
-    "GET /singleton - Get a single specific container instance\n" +
-    "GET /random?size=<bytes> - Generate random data (default: 1024 bytes)",
+    "GET /container/<ID> - Start a container for each ID with a 2m timeout\n"
   );
 });
 
@@ -147,12 +214,12 @@ app.get("/container/:id", async (c) => {
 
   // Initialize filesystem connection for this container instance
   try {
-    const conn = container.connect('10.0.0.1:8000');
+    const conn = container.connect('10.0.0.1:8000') as Connection;
     await conn.opened;
     console.log(`Filesystem connection established for container ${id}`);
-
-    // Handle the connection for filesystem operations
-    // Store connection reference or handle streams here
+    
+    // Store connection for the DO to pick up
+    containerConnections.set(id, conn);
   } catch (error) {
     console.error(`Failed to connect to filesystem for container ${id}:`, error);
   }
