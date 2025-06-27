@@ -13,7 +13,23 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	message := os.Getenv("MESSAGE")
 	secret := os.Getenv("MYSECRET")
 	instanceId := os.Getenv("CLOUDFLARE_DEPLOYMENT_ID")
-	messageToPrint := fmt.Sprintf("Hi, I'm a container and this is my message: \"%s\", my secret is: \"%s\", my instance ID is: %s", message, secret, instanceId)
+	
+	// Test writing to persistent storage
+	counterFile := "/storage/visit_counter.txt"
+	counter := 1
+	
+	// Read existing counter
+	if data, err := os.ReadFile(counterFile); err == nil {
+		if count, err := strconv.Atoi(string(data)); err == nil {
+			counter = count + 1
+		}
+	}
+	
+	// Write new counter
+	os.WriteFile(counterFile, []byte(strconv.Itoa(counter)), 0644)
+	
+	messageToPrint := fmt.Sprintf("Hi, I'm a container! Message: \"%s\", Secret: \"%s\", Instance: %s, Visit: %d", 
+		message, secret, instanceId, counter)
 	fmt.Println(messageToPrint)
 	fmt.Fprint(w, messageToPrint)
 }
